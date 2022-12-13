@@ -10,7 +10,7 @@ class Dataset_Config(object):
     def __init__(self, dataset):
         if dataset == 'virtualhome':
             '''Data generation'''
-            self.root_path = Path('datasets/virtualhome_22_classes')
+            self.root_path = Path('/home/gogebakan/workspace/Pose2Room/datasets/virtualhome_22_classes')
             self.scene_num = 7
             self.joint_num = 53
             self.origin_joint_id = 0 # the idx of hip joint

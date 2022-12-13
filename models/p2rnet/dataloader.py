@@ -83,10 +83,17 @@ class P2RNet_VirtualHome(Base_Dataset):
         '''Get each sample'''
         '''Load data'''
         data_path = self.split[idx]
+        ##
+        data_path = os.path.join('/home/gogebakan/workspace/Pose2Room',data_path)
+        ##
         sample_data = h5py.File(data_path, "r")
         skeleton_joints = sample_data['skeleton_joints'][:]
         object_nodes = sample_data['object_nodes']
         skeleton_joint_votes = sample_data['skeleton_joint_votes'][:]
+        
+        ##
+        shape_codes = sample_data['shape_codes'][:]
+        ###
         instances = []
         for instance_id in object_nodes.keys():
             object_node = object_nodes[instance_id]
@@ -144,6 +151,8 @@ class P2RNet_VirtualHome(Base_Dataset):
         ret_dict['vote_label'] = input_joint_votes.astype(np.float32)
         ret_dict['vote_label_mask'] = joint_votes_mask.astype(np.int64)
         ret_dict['sample_idx'] = '.'.join(os.path.basename(data_path).split('.')[:-1])
+        ret_dict['shape_codes'] = shape_codes
+        
         return ret_dict
 
 def collate_fn(batch):

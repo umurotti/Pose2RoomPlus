@@ -11,7 +11,7 @@ device:
   dist_url: env://
 data:
   dataset: virtualhome
-  split: datasets/virtualhome_22_classes/splits/script_level
+  split: /home/gogebakan/workspace/Pose2Room/datasets/virtualhome_22_classes/splits/script_level
   num_frames: 768
   num_seeds: 512
   seed_sampling: uniform
@@ -45,7 +45,7 @@ train:
   epochs: 180
   phase: 'full'
   freeze: []
-  batch_size: 8
+  batch_size: 1
 val:
   phase: 'full'
   batch_size: 8
