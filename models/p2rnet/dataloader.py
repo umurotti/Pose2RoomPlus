@@ -83,9 +83,6 @@ class P2RNet_VirtualHome(Base_Dataset):
         '''Get each sample'''
         '''Load data'''
         data_path = self.split[idx]
-        ##
-        data_path = os.path.join('/home/gogebakan/workspace/Pose2Room',data_path)
-        ##
         sample_data = h5py.File(data_path, "r")
         skeleton_joints = sample_data['skeleton_joints'][:]
         object_nodes = sample_data['object_nodes']
@@ -151,7 +148,15 @@ class P2RNet_VirtualHome(Base_Dataset):
         ret_dict['vote_label'] = input_joint_votes.astype(np.float32)
         ret_dict['vote_label_mask'] = joint_votes_mask.astype(np.int64)
         ret_dict['sample_idx'] = '.'.join(os.path.basename(data_path).split('.')[:-1])
-        ret_dict['shape_codes'] = shape_codes
+        ret_dict['shape_codes'] = shape_codes.astype(np.float32)
+        
+        #adl input
+        #stack size
+        bb_count = len(boxes3D)
+        padded_boxes3D = np.pad(boxes3D, [(0, 10-bb_count), (0, 0)], mode='constant').astype(np.float32)
+        #ret_dict['adl_input'] = np.hstack([padded_boxes3D.flatten(), ret_dict['input_joints'].flatten()])
+        ret_dict['adl_input'] = padded_boxes3D.flatten()
+        ret_dict['adl_output'] = ret_dict['shape_codes'].flatten()
         
         return ret_dict
 

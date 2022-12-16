@@ -120,7 +120,7 @@ included_classes = ['bed', 'sofa', 'chair', 'lamp', 'table']
 # Opening JSON file
 def main():
     mesh_bb_mapping = get_mesh_bb_mapping(shapenet_data_path, included_classes)
-    f = open(train_path)
+    f = open(validation_path)
     # returns JSON object as a dictionary
     path_list = json.load(f)
     logging.info(f'Path list size: {len(path_list)}')
@@ -153,6 +153,10 @@ def main():
                 logging.debug(f'Object: {class_name}\tBest match: {best_match}')
             else:
                 shape_codes.append(np.zeros((1, 1024)))
+
+        # shape codes for each scene have to be in size (10, 1024)
+        for i in range(len(shape_codes), 10):
+            shape_codes.append(np.zeros((1, 1024)))
 
         if 'shape_codes' in sample_data.keys():
             del sample_data['shape_codes']

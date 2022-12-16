@@ -45,7 +45,7 @@ train:
   epochs: 180
   phase: 'full'
   freeze: []
-  batch_size: 1
+  batch_size: 128
 val:
   phase: 'full'
   batch_size: 8
