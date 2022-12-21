@@ -14,9 +14,9 @@ import random
 default_collate = torch.utils.data.dataloader.default_collate
 
 
-class P2RNet_VirtualHome(Base_Dataset):
+class MLP_Dataset(Base_Dataset):
     def __init__(self,cfg, mode):
-        super(P2RNet_VirtualHome, self).__init__(cfg, mode)
+        super(MLP_Dataset, self).__init__(cfg, mode)
         self.aug = mode == 'train'
         self.num_frames = cfg.config['data']['num_frames']
         self.use_height = not cfg.config['data']['no_height']
@@ -28,7 +28,7 @@ class P2RNet_VirtualHome(Base_Dataset):
                                                     [np.sin(theta), 0, np.cos(theta)]])
             self.offset_func = lambda scale: np.array([1., 0., 1.]) * scale
 
-    def augment_data(self, skeleton_joints, object_nodes, skeleton_joint_votes):
+    def augment_data(self, skeleton_joints, object_nodes):
         '''Augment training data'''
         if_flip = random.randint(0, 1)
         rot_angle = np.random.choice([-np.pi, -0.5 * np.pi, 0, 0.5 * np.pi])
@@ -36,17 +36,11 @@ class P2RNet_VirtualHome(Base_Dataset):
         rot_mat = self.rot_func(rot_angle)
         offset = self.offset_func(offset_scale)
 
-        n_frames, n_joints = skeleton_joint_votes.shape[:2]
         '''begin to augment'''
         if if_flip:
             '''begin to flip'''
             # flip skeleton
             skeleton_joints = np.dot(skeleton_joints, self.flip_matrix)
-            # flip votes
-            votes = skeleton_joint_votes[..., 1:].reshape(n_frames, n_joints, 3, 3)
-            votes = np.dot(votes, self.flip_matrix)
-            votes = votes.reshape(n_frames, n_joints, 9)
-            skeleton_joint_votes[..., 1:] = votes
             # flip object bboxes
             for node in object_nodes:
                 node['centroid'] = np.dot(np.array(node['centroid']), self.flip_matrix)
@@ -55,16 +49,8 @@ class P2RNet_VirtualHome(Base_Dataset):
                 node['R_mat'] = R_mat
 
         '''begin to rotate'''
-        # rotate votes
-        point_votes_end = np.zeros_like(skeleton_joint_votes)
-        point_votes_end[..., 1:4] = np.dot(skeleton_joints[..., 0:3] + skeleton_joint_votes[..., 1:4], rot_mat)
-        point_votes_end[..., 4:7] = np.dot(skeleton_joints[..., 0:3] + skeleton_joint_votes[..., 4:7], rot_mat)
-        point_votes_end[..., 7:10] = np.dot(skeleton_joints[..., 0:3] + skeleton_joint_votes[..., 7:10], rot_mat)
         # rotate skeleton
         skeleton_joints = np.dot(skeleton_joints, rot_mat)
-        skeleton_joint_votes[..., 1:4] = point_votes_end[..., 1:4] - skeleton_joints[..., 0:3]
-        skeleton_joint_votes[..., 4:7] = point_votes_end[..., 4:7] - skeleton_joints[..., 0:3]
-        skeleton_joint_votes[..., 7:10] = point_votes_end[..., 7:10] - skeleton_joints[..., 0:3]
         # rotate object bboxes
         for node in object_nodes:
             node['centroid'] = np.dot(np.array(node['centroid']), rot_mat)
@@ -77,41 +63,53 @@ class P2RNet_VirtualHome(Base_Dataset):
         for node in object_nodes:
             node['centroid'] += offset
 
-        return skeleton_joints, object_nodes, skeleton_joint_votes
+        return skeleton_joints, object_nodes
 
     def __getitem__(self, idx):
         '''Get each sample'''
         '''Load data'''
         data_path = self.split[idx]
-
-        sample_data = h5py.File(data_path, "r")
-        #sample_data = self.id_file_dict[data_path]
-        skeleton_joints = sample_data['skeleton_joints'][:]
-        object_nodes = sample_data['object_nodes']
-        skeleton_joint_votes = sample_data['skeleton_joint_votes'][:]
-        
-        ##
-        shape_codes = sample_data['shape_codes'][:]
-        ###
+        use_memory = True
         instances = []
-        for instance_id in object_nodes.keys():
-            object_node = object_nodes[instance_id]
-            instance = {'class_id': object_node['class_id'][0], 'centroid': object_node['centroid'][:],
-                        'R_mat': object_node['R_mat'][:], 'size': object_node['size'][:]}
-            instances.append(instance)
-        sample_data.close()
+
+        if use_memory == True:
+            sample_data = self.id_file_dict[data_path]
+            skeleton_joints = sample_data['skeleton_joints']
+            object_nodes = sample_data['object_nodes']
+            shape_codes = sample_data['shape_codes']
+            # print(object_nodes.keys())
+            # print(type(skeleton_joints))
+                        
+            for instance_id in object_nodes.keys():
+                object_node = object_nodes[instance_id]
+                instance = {'centroid': object_node['centroid'][:],
+                            'R_mat': object_node['R_mat'][:], 
+                            'size': object_node['size'][:]}
+                instances.append(instance)
+
+        else:
+            sample_data = h5py.File(data_path, "r")
+            skeleton_joints = sample_data['skeleton_joints'][:]
+            object_nodes = sample_data['object_nodes']
+            shape_codes = sample_data['shape_codes'][:]
+        
+            for instance_id in object_nodes.keys():
+                object_node = object_nodes[instance_id]
+                instance = {'centroid': object_node['centroid'][:],
+                            'R_mat': object_node['R_mat'][:], 
+                            'size': object_node['size'][:]}
+                instances.append(instance)
+
+            sample_data.close()
 
         '''Augment data'''
         if self.aug:
-            skeleton_joints, instances, skeleton_joint_votes = self.augment_data(skeleton_joints, instances,
-                                                                                 skeleton_joint_votes)
+            skeleton_joints, instances = self.augment_data(skeleton_joints, instances)
         boxes3D = []
-        classes = []
         for instance in instances:
             heading = rot2head(instance['R_mat'])
             box3D = np.hstack([instance['centroid'], np.log(instance['size']), np.sin(heading), np.cos(heading)])
             boxes3D.append(box3D)
-            classes.append(instance['class_id'])
 
         boxes3D = np.array(boxes3D)
 
@@ -120,36 +118,14 @@ class P2RNet_VirtualHome(Base_Dataset):
             height = skeleton_joints[..., 1] - floor_height
             skeleton_joints = np.concatenate([skeleton_joints, np.expand_dims(height, -1)], -1)
 
-        target_bboxes_mask = np.zeros((self.max_num_obj))
-        target_bboxes_semcls = np.zeros((self.max_num_obj))
-        centers = np.zeros((self.max_num_obj, 3))
-        sizes = np.zeros((self.max_num_obj, 3))
-        headings = np.zeros((self.max_num_obj, 2))
-
-        # store GT in containers
-        target_bboxes_mask[0:boxes3D.shape[0]] = 1
-        target_bboxes_semcls[0:boxes3D.shape[0]] = classes
-        centers[0:boxes3D.shape[0], :] = boxes3D[:, 0:3]
-        sizes[0:boxes3D.shape[0], :] = boxes3D[:, 3:6]
-        headings[0:boxes3D.shape[0], :] = boxes3D[:, 6:8]
 
         # Process input frames
         joint_ids = np.linspace(0, skeleton_joints.shape[0]-1, self.num_frames).round().astype(np.uint16)
         input_joints = skeleton_joints[joint_ids]
-        input_joint_votes = skeleton_joint_votes[joint_ids, :, 1:]
-        joint_votes_mask = skeleton_joint_votes[joint_ids, :, 0]
 
         # deliver to network
         ret_dict = {}
         ret_dict['input_joints'] = input_joints.astype(np.float32)
-        ret_dict['box_label_mask'] = target_bboxes_mask.astype(np.float32)
-        ret_dict['sem_cls_label'] = target_bboxes_semcls.astype(np.int64)
-        ret_dict['center_label'] = centers.astype(np.float32)
-        ret_dict['size'] = sizes.astype(np.float32)
-        ret_dict['heading'] = headings.astype(np.float32)
-        ret_dict['vote_label'] = input_joint_votes.astype(np.float32)
-        ret_dict['vote_label_mask'] = joint_votes_mask.astype(np.int64)
-        ret_dict['sample_idx'] = '.'.join(os.path.basename(data_path).split('.')[:-1])
         ret_dict['shape_codes'] = shape_codes.astype(np.float32)
         
         #adl input
@@ -186,9 +162,9 @@ def my_worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0] + worker_id)
 
 # Init datasets and dataloaders
-def P2RNet_dataloader(cfg, mode='train'):
+def MLP_dataloader(cfg, mode='train'):
     if cfg.config['data']['dataset'] == 'virtualhome':
-        dataset = P2RNet_VirtualHome(cfg, mode)
+        dataset = MLP_Dataset(cfg, mode)
     else:
         raise NotImplementedError
 

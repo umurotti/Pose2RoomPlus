@@ -149,4 +149,6 @@ class STGCN(nn.Module):
         end_points['seed_skeleton'] = seed_skeleton[..., :3]
         end_points['seed_features'] = seed_features
 
+        breakpoint()
+
         return end_points

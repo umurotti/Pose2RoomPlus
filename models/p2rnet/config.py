@@ -2,6 +2,7 @@
 #  License: MIT
 
 from .dataloader import P2RNet_dataloader
+from .mlp_dataloader import MLP_dataloader
 from .testing import Tester
 from .training import Trainer
 
@@ -13,5 +14,8 @@ def get_tester(cfg, net, device=None):
     return Tester(cfg=cfg, net=net, device=device)
 
 
-def get_dataloader(cfg, mode):
-    return P2RNet_dataloader(cfg=cfg, mode=mode)
+def get_dataloader(cfg, mode, dataset):
+    if dataset == 'MLP':
+        return MLP_dataloader(cfg=cfg, mode=mode)
+    else:
+        return P2RNet_dataloader(cfg=cfg, mode=mode)

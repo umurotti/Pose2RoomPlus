@@ -282,7 +282,7 @@ def load_tester(cfg, net, device):
                                                                   device=device)
     return tester
 
-def load_dataloader(cfg, mode):
+def load_dataloader(cfg, mode, dataset):
     '''
     load dataloader
     :param cfg: configuration file.
@@ -290,7 +290,8 @@ def load_dataloader(cfg, mode):
     :return:
     '''
     dataloader = method_paths[cfg.config['method']].config.get_dataloader(cfg=cfg,
-                                                                          mode=mode)
+                                                                          mode=mode,
+                                                                          dataset=dataset)
     return dataloader
 
 class AverageMeter(object):

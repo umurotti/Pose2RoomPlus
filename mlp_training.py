@@ -7,7 +7,7 @@ from configs.config_utils import CONFIG, read_to_dict, mount_external_config
 from net_utils.utils import load_dataloader
 from adl_scripts.MLP_Regressor import MLP_Regressor
 from torch.utils.tensorboard import SummaryWriter
-
+from time import time
 
 def parse_args():
     '''PARAMETERS'''
@@ -65,10 +65,11 @@ def main():
     cfg.write_config()
     
     '''Mount external config data'''
+    dataset = 'MLP'
     cfg = mount_external_config(cfg)
-    train_loader = load_dataloader(cfg, mode='train')
+    train_loader = load_dataloader(cfg, mode='train', dataset=dataset)
     data_loader = train_loader.dataloader
-    data_loader_validation = load_dataloader(cfg, mode='val').dataloader
+    data_loader_validation = load_dataloader(cfg, mode='val', dataset=dataset).dataloader
 
     device = torch.device("cuda")
     epochs = 1000
@@ -87,7 +88,9 @@ def main():
     val_epoch = 3
 
     # train
+    
     for epoch in range(epochs):
+        start = time()
         current_loss = 0.0
 
         for scene_id, scene_data in enumerate(tqdm(data_loader)):
@@ -113,10 +116,12 @@ def main():
 
         writer.add_scalar("current_loss", current_loss, epoch)
         writer.add_scalar("Loss/train", loss, epoch)
-
-        # validation
-        print("Validation.../tEpoch:", epoch)
+        end = time()
+        print(f'epoch time: {end-start}')
+        
         if epoch % val_epoch == 0:
+            # validation
+            print("Validation...\tEpoch:", epoch)
             validation_loss = validate_epoch(data_loader_validation, optimizer, model, l2_loss)
             writer.add_scalar("Loss/validation", validation_loss, epoch)
         
