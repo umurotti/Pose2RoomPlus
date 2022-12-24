@@ -17,7 +17,9 @@ class Base_Dataset(Dataset):
         self.config = cfg.config
         self.dataset_config = cfg.dataset_config
         self.mode = mode
-        split_file = os.path.join(cfg.config['data']['split'], mode + '.json')
+        
+        json_file = f'{mode}_all.json' if 'use_all' in cfg.config['data'] else mode + '.json'
+        split_file = os.path.join(cfg.config['data']['split'], json_file)
         self.split = read_json(split_file)
         self.id_file_dict = self.get_data_to_memory()
 

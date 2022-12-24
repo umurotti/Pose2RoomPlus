@@ -96,13 +96,14 @@ def main():
         for scene_id, scene_data in enumerate(tqdm(data_loader)):
         # for scene_data in [temp_data]:
             inputs, targets = scene_data['adl_input'], scene_data['adl_output']
+            breakpoint()
             inputs = inputs.to(device)
             targets = targets.to(device)
 
             optimizer.zero_grad()
             
             predictions = model(inputs)
-
+            
             loss = l2_loss(predictions, targets)
             # breakpoint()
             loss.backward()

@@ -282,7 +282,7 @@ def load_tester(cfg, net, device):
                                                                   device=device)
     return tester
 
-def load_dataloader(cfg, mode, dataset):
+def load_dataloader(cfg, mode, dataset = None):
     '''
     load dataloader
     :param cfg: configuration file.

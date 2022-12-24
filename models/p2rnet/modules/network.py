@@ -5,6 +5,9 @@ from models.registers import METHODS, MODULES, LOSSES
 from models.network import BaseNetwork
 import torch
 from net_utils.ap_helper import parse_predictions, parse_groundtruths, assembly_pred_map_cls, assembly_gt_map_cls
+import numpy as np
+import os.path as osp
+import h5py
 
 @METHODS.register_module
 class P2RNet(BaseNetwork):
@@ -50,6 +53,57 @@ class P2RNet(BaseNetwork):
         end_points = self.backbone(data['input_joints'], end_points)
         xyz = end_points['seed_skeleton']
         features = end_points['seed_features']
+        seed_inds = end_points['seed_inds']
+
+
+        #######
+        def get_nearest_K_features(seed_features, seed_skeletons, seed_inds, BB_center, K = 10):
+            root_joints = seed_skeletons[0,:,0,:]
+            dist = torch.norm(root_joints - BB_center, dim=1, p=None)
+            min_seed_index = torch.argmin(dist)
+            if min_seed_index < K:
+                min_seed_index = K
+            elif min_seed_index > seed_features.shape[1] - K:
+                min_seed_index = seed_features.shape[1] - K
+            knn_seed_features = seed_features[0][min_seed_index-K:min_seed_index+K]
+            knn_seed_inds = seed_inds[0][min_seed_index-K:min_seed_index+K]
+            return knn_seed_features.cpu().detach().numpy(), knn_seed_inds.cpu().detach().numpy()
+
+        def write_nearest_features_to_dataset(file_name, samples_folder_path, nearest_seed_skeleton_features, nearest_seed_skeleton_indices):
+            file_dest = osp.join(samples_folder_path, file_name)
+            sample_data = h5py.File(file_dest, "a")
+            if 'nearest_seed_skeleton_features' in sample_data.keys():
+                del sample_data['nearest_seed_skeleton_features']
+            if 'nearest_seed_skeleton_indices' in sample_data.keys():
+                del sample_data['nearest_seed_skeleton_indices']
+            sample_data.create_dataset('nearest_seed_skeleton_features', data=nearest_seed_skeleton_features) 
+            sample_data.create_dataset('nearest_seed_skeleton_indices', data=nearest_seed_skeleton_indices) 
+            sample_data.close()
+
+
+        K = 10
+
+        nearest_seed_skeleton_features_list = []
+        nearest_seed_skeleton_indices_list = []
+        for BB_center in data['center_label'][0]:
+            if torch.count_nonzero(BB_center) != 0:
+                knn_seed_features, knn_seed_inds = get_nearest_K_features(features, xyz, seed_inds, BB_center, K)
+            else:
+                knn_seed_features = np.zeros((2*K, features.shape[-1]))
+                knn_seed_inds = np.zeros(2*K)
+            nearest_seed_skeleton_features_list.append(knn_seed_features)
+            nearest_seed_skeleton_indices_list.append(knn_seed_inds)
+          
+        samples_folder_path = self.cfg.config['data']['samples_path']
+        file_name = f"{data['sample_idx'][0]}.hdf5"
+        try:
+            write_nearest_features_to_dataset(file_name, 
+                                            samples_folder_path, 
+                                            nearest_seed_skeleton_features_list, 
+                                            nearest_seed_skeleton_indices_list)
+        except:
+            breakpoint()
+        #######
 
         # --------- Generate Center Candidates ---------
         xyz, features = self.centervoting(xyz, features)

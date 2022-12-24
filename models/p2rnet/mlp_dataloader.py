@@ -77,6 +77,7 @@ class MLP_Dataset(Base_Dataset):
             skeleton_joints = sample_data['skeleton_joints']
             object_nodes = sample_data['object_nodes']
             shape_codes = sample_data['shape_codes']
+            seed_features = sample_data['nearest_seed_skeleton_features']
             # print(object_nodes.keys())
             # print(type(skeleton_joints))
                         
@@ -133,8 +134,12 @@ class MLP_Dataset(Base_Dataset):
         bb_count = len(boxes3D)
         padded_boxes3D = np.pad(boxes3D, [(0, 10-bb_count), (0, 0)], mode='constant').astype(np.float32)
         #ret_dict['adl_input'] = np.hstack([padded_boxes3D.flatten(), ret_dict['input_joints'].flatten()])
-        ret_dict['adl_input'] = padded_boxes3D.flatten()
-        ret_dict['adl_output'] = ret_dict['shape_codes'].flatten()
+        ret_dict['adl_input'] = {
+            'bounding_boxes': padded_boxes3D,
+            'seed_features': seed_features
+        }
+        
+        ret_dict['adl_output'] = ret_dict['shape_codes']
         
         return ret_dict
 

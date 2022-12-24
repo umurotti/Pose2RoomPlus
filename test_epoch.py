@@ -6,6 +6,7 @@ from time import time
 import torch
 import numpy as np
 from net_utils.ap_helper import APCalculator
+from tqdm import tqdm
 
 def test_func(cfg, tester, test_loader):
     '''
@@ -24,7 +25,7 @@ def test_func(cfg, tester, test_loader):
     cfg.log_string('-'*100)
     dataloader = test_loader.dataloader
     time_list = []
-    for iter, data in enumerate(dataloader):
+    for iter, data in enumerate(tqdm(dataloader)):
         start = time()
         loss, est_data = tester.test_step(data)
         cost = time() - start

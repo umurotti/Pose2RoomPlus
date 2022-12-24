@@ -10,6 +10,7 @@ device:
   world_size: 1 # will be overloaded by distributed setting
   dist_url: env://
 data:
+  use_all: True
   dataset: virtualhome
   split: datasets/virtualhome_22_classes/splits/script_level
   samples_path: /home/gogebakan/workspace/Pose2Room/datasets/virtualhome_22_classes/samples

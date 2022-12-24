@@ -14,7 +14,7 @@ def get_tester(cfg, net, device=None):
     return Tester(cfg=cfg, net=net, device=device)
 
 
-def get_dataloader(cfg, mode, dataset):
+def get_dataloader(cfg, mode, dataset = None):
     if dataset == 'MLP':
         return MLP_dataloader(cfg=cfg, mode=mode)
     else:
