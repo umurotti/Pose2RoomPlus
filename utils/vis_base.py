@@ -62,7 +62,6 @@ class VIS_BASE(object):
         return actor
 
     def set_mapper(self, prop, mode):
-
         mapper = vtk.vtkPolyDataMapper()
 
         if mode == 'model':
@@ -73,7 +72,6 @@ class VIS_BASE(object):
                 mapper.SetInput(prop)
             else:
                 mapper.SetInputData(prop)
-
         else:
             raise IOError('No Mapper mode found.')
 
@@ -238,6 +236,12 @@ class VIS_BASE(object):
         plydata.SetFileName(plyfile)
         plydata.Update()
         return plydata
+    
+    def set_obj_property(self, objfile):
+        objdata = vtk.vtkOBJReader()
+        objdata.SetFileName(objfile)
+        objdata.Update()
+        return objdata
 
     def get_box_corners(self, center, vectors):
         '''

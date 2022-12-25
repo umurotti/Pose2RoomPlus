@@ -123,6 +123,32 @@ class VIS_GT(VIS_BASE):
                     arrow_actor = self.set_arrow_actor(centroid, vectors[index])
                     arrow_actor.GetProperty().SetColor(color[index])
                     renderer.AddActor(arrow_actor)
+                ####    
+                model3d = '/home/baykara/adl4cv/pointnet_pytorch/data/myshapenet/raw_obj/chair/chair1.obj'
+                ply_actor = self.set_actor(self.set_mapper(self.set_obj_property(model3d), 'model'))
+
+                ply_actor.GetProperty().SetOpacity(1)
+                ply_actor.GetProperty().SetInterpolationToPBR()
+                
+                red_arrow_actor = self.set_arrow_actor(centroid, vectors[0])
+                red_arrow_matrix = red_arrow_actor.GetUserMatrix()
+                matrix = vtk.vtkMatrix4x4()
+                matrix.Identity()
+                math = vtk.vtkMath()
+                
+                red_vector = vectors[0]
+                norm = math.Norm(red_vector)
+                #angle = red_vector[0] / norm
+                angle = math.AngleBetweenVectors(red_vector,[1,0,0]) - math.Pi()/2
+                
+                print(red_vector, angle)
+                
+                transform = vtk.vtkTransform()
+                transform.Translate(centroid)
+                transform.RotateY(angle * 180.0 / math.Pi())
+                ply_actor.SetUserMatrix(transform.GetMatrix())
+                renderer.AddActor(ply_actor)
+                #####
 
         '''draw camera locations'''
         if 'cam_locs' in kwargs['type']:
@@ -135,9 +161,15 @@ class VIS_GT(VIS_BASE):
 
         '''draw scene mesh'''
         if 'mesh' in kwargs['type']:
-            ply_actor = self.set_actor(self.set_mapper(self.set_ply_property('./temp/tsdf_mesh_vhome.ply'), 'model'))
+            model3d = '/home/baykara/adl4cv/pointnet_pytorch/data/myshapenet/raw_obj/chair/chair1.obj'
+            if model3d.endswith('.obj'):
+                ply_actor = self.set_actor(self.set_mapper(self.set_obj_property(model3d), 'model'))
+            else:
+                ply_actor = self.set_actor(self.set_mapper(self.set_ply_property(model3d), 'model'))
+                
             ply_actor.GetProperty().SetOpacity(1)
             ply_actor.GetProperty().SetInterpolationToPBR()
+            arrow_actor = self.set_arrow_actor(centroid, vectors[index])
             renderer.AddActor(ply_actor)
 
         if 'voxels' in kwargs['type']:
@@ -362,6 +394,6 @@ if __name__ == '__main__':
     '''visualize bboxes'''
     viser = VIS_GT(nodes=object_nodes, room_bbox=room_bbox, skeleton_joints=skeleton_joints,
                    skeleton_joint_votes=skeleton_joint_votes, skeleton_mask=vote_mask, keep_interact_skeleton=True, skip_rates=10)
-    viser.visualize(type=['bboxes', 'room_bbox', 'skeleton'])
+    viser.visualize(type=['bboxes', 'room_bbox', 'skeleton', 'mesh'])
 
 

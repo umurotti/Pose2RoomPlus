@@ -1,6 +1,8 @@
+.vscode
 __pycache__/
 runs
 out/p2rnet
 datasets/virtualhome_22_classes/mlp_dataset/
 datasets/virtualhome_22_classes/samples/
 external/pointnet2_ops_lib/out/
+saved_models
