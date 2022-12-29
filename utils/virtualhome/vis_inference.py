@@ -130,7 +130,9 @@ class VIS_GT(VIS_BASE):
                         mapping[class_name].append((shape_code_path, shape_code))
                 return mapping
             
-            
+            model = MLP_Regressor()
+            model.load_state_dict(torch.load(PATH))
+            model.eval()
             
             # draw instance bboxes
             for node_idx, node in enumerate(self.nodes):

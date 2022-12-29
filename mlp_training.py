@@ -102,12 +102,12 @@ def main():
     validation_loader = load_dataloader(cfg, mode='val', dataset=dataset).dataloader
 
     device = torch.device("cuda")
-    epochs = 50
+    epochs = 200
     val_epoch = 3
     nearest_k_frames = 10
     input_size = 8 + 2*nearest_k_frames*256
     output_size = 1024
-    layer_sizes = [2048]
+    layer_sizes = [2048, 1024]
     model = MLP_Regressor(input_size=input_size, output_size=output_size, layer_sizes=layer_sizes)
     
     model = model.to(device)
@@ -117,7 +117,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     best_loss = 10*5
-    patience = 2
+    patience = 10
     early_stop_counter = 0
 
     pbar = tqdm(total=epochs)

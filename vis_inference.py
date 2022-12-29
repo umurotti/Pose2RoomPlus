@@ -6,6 +6,8 @@ import argparse
 import h5py
 from utils.virtualhome import dataset_config, LIMBS, valid_joint_ids
 from utils.vis_base import VIS_BASE
+from adl_scripts.MLP_Regressor import MLP_Regressor
+from utils.pc_utils import rot2head
 import seaborn as sns
 import numpy as np
 import random
@@ -13,6 +15,7 @@ import vtk
 import open3d as o3d
 import os
 import os.path as osp
+import torch
 
 def dist_node2bbox(nodes, joint_coordinates, joint_num):
     sk_ids = []
@@ -24,6 +27,7 @@ def dist_node2bbox(nodes, joint_coordinates, joint_num):
         sk_ids.append(dists.argmin())
     return np.sort(sk_ids)
 
+
 def get_even_dist_joints(skeleton_joints, skip_rates):
     # Downsampling by 1-d distance interpolation
     frame_num = skeleton_joints.shape[0] // skip_rates + 1
@@ -33,10 +37,49 @@ def get_even_dist_joints(skeleton_joints, skip_rates):
     selected_sk_ids = np.argmin(np.abs(cum_dist[:, np.newaxis] - target_cum_dist), axis=0)
     return selected_sk_ids
 
-class VIS_GT(VIS_BASE):
-    def __init__(self, nodes=(), cam_locs=(), points_world=(), room_bbox=None, skeleton_joints=None,
+
+def get_mesh_shape_code_mapping(shapenet_data_path, included_classes):
+    def read_data(data_path):
+        shape_code_paths = []
+        # giving file extension
+        ext = ('.npy')
+        for file_name in os.listdir(data_path):
+            if file_name.endswith(ext):
+                shape_code_paths.append(osp.join(data_path, file_name))
+        return shape_code_paths
+    
+    mapping = {}
+    for class_name in included_classes:
+        shape_code_paths = read_data(osp.join(shapenet_data_path, class_name))
+        mapping[class_name] = []
+        for shape_code_path in shape_code_paths:
+            shape_code = np.load(shape_code_path).flatten()
+            shape_code = torch.from_numpy(shape_code).cuda()
+            mapping[class_name].append((shape_code_path, shape_code))
+    return mapping
+            
+            
+def find_closest_shapenet_model(output_shape_code, obj_class, mesh_shape_code_mapping):
+    min_dist = 10**9
+    shape_code_path = None
+
+    for shape_path, shape_code in mesh_shape_code_mapping[obj_class]:
+        # breakpoint()
+        dist = torch.linalg.norm(shape_code - output_shape_code)
+        # dist = torch.cdist(shape_code, output_shape_code)
+        if dist < min_dist:
+            min_dist = dist
+            shape_code_path = shape_path
+    
+    obj_path = shape_code_path.replace('.npy', '.obj')
+    return obj_path
+
+
+class VIS_INFERENCE(VIS_BASE):
+    def __init__(self, adl_inputs=(), nodes=(), cam_locs=(), points_world=(), room_bbox=None, skeleton_joints=None,
                  skeleton_joint_votes=None, skeleton_mask=None, keep_interact_skeleton=False, skip_rates=1):
-        super(VIS_GT, self).__init__()
+        super(VIS_INFERENCE, self).__init__()
+        self.adl_inputs = adl_inputs
         self.nodes = nodes
         self.cam_locs = cam_locs
         self.room_bbox = room_bbox
@@ -110,27 +153,19 @@ class VIS_GT(VIS_BASE):
             renderer.AddActor(box_actor)
 
         if 'bboxes' in kwargs['type']:
+            checkpoint_path = 'saved_models/checkpoint.pt'
+            nearest_k_frames = 10
+            input_size = 8 + 2*nearest_k_frames*256
+            layer_sizes = [2048, 1024]
+            output_size = 1024
+            model = MLP_Regressor(input_size=input_size, output_size=output_size, layer_sizes=layer_sizes)
+            model.load_state_dict(torch.load(checkpoint_path))
+            model.cuda()
+            model.eval()
             
-            def get_mesh_shape_code_mapping(shapenet_data_path, included_classes):
-                def read_data(data_path):
-                    shape_code_paths = []
-                    # giving file extension
-                    ext = ('.npy')
-                    for file_name in os.listdir(data_path):
-                        if file_name.endswith(ext):
-                            shape_code_paths.append(osp.join(data_path, file_name))
-                    return shape_code_paths
-                
-                mapping = {}
-                for class_name in included_classes:
-                    shape_code_paths = read_data(osp.join(shapenet_data_path, class_name))
-                    mapping[class_name] = []
-                    for shape_code_path in shape_code_paths:
-                        shape_code = np.load(shape_code_path)
-                        mapping[class_name].append((shape_code_path, shape_code))
-                return mapping
-            
-            
+            shapenet_data_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/small_dataset/'
+            included_classes = ['bed', 'sofa', 'chair', 'lamp', 'table']
+            mesh_shape_code_mapping = get_mesh_shape_code_mapping(shapenet_data_path, included_classes)
             
             # draw instance bboxes
             for node_idx, node in enumerate(self.nodes):
@@ -148,10 +183,18 @@ class VIS_GT(VIS_BASE):
                     arrow_actor = self.set_arrow_actor(centroid, vectors[index])
                     arrow_actor.GetProperty().SetColor(color[index])
                     renderer.AddActor(arrow_actor)
-                ####    
-                model3d_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/raw_obj/chair/chair1.obj'
-                ply_actor = self.set_actor(self.set_mapper(self.set_obj_property(model3d_path), 'model'))
+                
+                adl_input = torch.tensor(self.adl_inputs[node_idx]).cuda()
+                output_shape_code = model(adl_input)
 
+                class_name = node['class_name'][0].decode('utf-8')
+                
+                if class_name not in included_classes:
+                    continue
+                    
+                best_shapenet_model_path = find_closest_shapenet_model(output_shape_code, class_name, mesh_shape_code_mapping)
+                
+                ply_actor = self.set_actor(self.set_mapper(self.set_obj_property(best_shapenet_model_path), 'model'))
                 ply_actor.GetProperty().SetOpacity(1)
                 ply_actor.GetProperty().SetInterpolationToPBR()
                 
@@ -159,15 +202,12 @@ class VIS_GT(VIS_BASE):
                 red_vector = vectors[0]
                 angle = math.SignedAngleBetweenVectors([0,0,-1], red_vector ,[0,1,0])
                 
-                #print(red_vector, angle)
-                
                 transform = vtk.vtkTransform()
                 transform.Translate(centroid)
                 transform.RotateY(angle * 180.0 / math.Pi())
                 
-                
                 # calculate scale factor by volume
-                mesh = o3d.io.read_triangle_mesh(model3d_path)
+                mesh = o3d.io.read_triangle_mesh(best_shapenet_model_path)
                 pcd = mesh.sample_points_uniformly(number_of_points=1024)
                 bb = o3d.geometry.AxisAlignedBoundingBox.create_from_points(pcd.points)
                 shape_bb_volume = bb.volume()
@@ -389,7 +429,8 @@ if __name__ == '__main__':
     args = parse_args()
     char_name = dataset_config.character_names[args.char_id].split('/')[1]
     sample_file = '%d_%d_%d_%s_0.hdf5' % (args.scene_id, args.room_id, args.script_id, char_name)
-    sample_file = dataset_config.sample_path.joinpath(sample_file)
+    # sample_file = dataset_config.sample_path.joinpath(sample_file)
+    sample_file = '/home/gogebakan/workspace/Pose2Room/datasets/virtualhome_22_classes/samples/4_2_202_Female2_0.hdf5'
 
     '''read data'''
     sample_data = h5py.File(sample_file, "r")
@@ -401,6 +442,7 @@ if __name__ == '__main__':
     skeleton_joint_votes = sample_data['skeleton_joint_votes'][:]
 
     object_nodes = []
+    adl_inputs = []
     for idx in range(len(sample_data['object_nodes'])):
         object_node = {}
         node_data = sample_data['object_nodes'][str(idx)]
@@ -409,22 +451,19 @@ if __name__ == '__main__':
                 continue
             object_node[key] = node_data[key][:]
         object_nodes.append(object_node)
+        
+        nearest_seed_skeleton_feature = sample_data['nearest_seed_skeleton_features'][idx].flatten()
+        heading = rot2head(node_data['R_mat'])
+        box3D = np.hstack([node_data['centroid'], np.log(node_data['size']), np.sin(heading), np.cos(heading)])
+        adl_input = np.hstack([box3D, nearest_seed_skeleton_feature]).astype(np.float32)
+        adl_inputs.append(adl_input)
 
-    '''augment data'''
-    if args.augment:
-        flip_matrix = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]])
-        rot_func = lambda theta: np.array([[np.cos(theta), 0., -np.sin(theta)],
-                                        [0., 1., 0.],
-                                        [np.sin(theta), 0, np.cos(theta)]])
-        offset_func = lambda scale: np.array([1., 0., 1.]) * scale
-        room_bbox, object_nodes, skeleton_joints, skeleton_joint_votes = augment_data(room_bbox, skeleton_joints,
-                                                                                      object_nodes, skeleton_joint_votes,
-                                                                                      flip_matrix, rot_func, offset_func)
     vote_mask = skeleton_joint_votes[..., 0, 0]
 
+        
     '''visualize bboxes'''
-    viser = VIS_GT(nodes=object_nodes, room_bbox=room_bbox, skeleton_joints=skeleton_joints,
+    viser = VIS_INFERENCE(adl_inputs=adl_inputs, nodes=object_nodes, room_bbox=room_bbox, skeleton_joints=skeleton_joints,
                    skeleton_joint_votes=skeleton_joint_votes, skeleton_mask=vote_mask, keep_interact_skeleton=True, skip_rates=10)
-    viser.visualize(type=['bboxes', 'room_bbox', 'skeleton', 'mesh'])
+    viser.visualize(type=['bboxes', 'room_bbox', 'skeleton'])
 
 
