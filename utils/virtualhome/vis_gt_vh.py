@@ -124,7 +124,7 @@ class VIS_GT(VIS_BASE):
                     arrow_actor.GetProperty().SetColor(color[index])
                     renderer.AddActor(arrow_actor)
                 ####    
-                model3d = '/home/baykara/adl4cv/pointnet_pytorch/data/myshapenet/raw_obj/chair/chair1.obj'
+                model3d = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/raw_obj/chair/chair1.obj'
                 ply_actor = self.set_actor(self.set_mapper(self.set_obj_property(model3d), 'model'))
 
                 ply_actor.GetProperty().SetOpacity(1)
@@ -139,7 +139,7 @@ class VIS_GT(VIS_BASE):
                 red_vector = vectors[0]
                 norm = math.Norm(red_vector)
                 #angle = red_vector[0] / norm
-                angle = math.AngleBetweenVectors(red_vector,[1,0,0]) - math.Pi()/2
+                angle = math.SignedAngleBetweenVectors([0,0,-1], red_vector ,[0,1,0])
                 
                 print(red_vector, angle)
                 
@@ -161,7 +161,7 @@ class VIS_GT(VIS_BASE):
 
         '''draw scene mesh'''
         if 'mesh' in kwargs['type']:
-            model3d = '/home/baykara/adl4cv/pointnet_pytorch/data/myshapenet/raw_obj/chair/chair1.obj'
+            model3d = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/raw_obj/chair/chair1.obj'
             if model3d.endswith('.obj'):
                 ply_actor = self.set_actor(self.set_mapper(self.set_obj_property(model3d), 'model'))
             else:
