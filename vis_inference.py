@@ -182,7 +182,7 @@ class VIS_INFERENCE(VIS_BASE):
                 for index in range(vectors.shape[0]):
                     arrow_actor = self.set_arrow_actor(centroid, vectors[index])
                     arrow_actor.GetProperty().SetColor(color[index])
-                    renderer.AddActor(arrow_actor)
+                    #renderer.AddActor(arrow_actor)
                 
                 adl_input = torch.tensor(self.adl_inputs[node_idx]).cuda()
                 output_shape_code = model(adl_input)
@@ -293,7 +293,7 @@ class VIS_INFERENCE(VIS_BASE):
                     line_actor.GetProperty().SetColor(self.skeleton_colors[sk_idx])
                     line_actor.GetProperty().SetOpacity(opacity)
                     line_actor.GetProperty().SetInterpolationToPBR()
-                    renderer.AddActor(line_actor)
+                    #renderer.AddActor(line_actor)
 
         # draw joint votes
         if 'joint_votes' in kwargs['type']:
@@ -464,6 +464,6 @@ if __name__ == '__main__':
     '''visualize bboxes'''
     viser = VIS_INFERENCE(adl_inputs=adl_inputs, nodes=object_nodes, room_bbox=room_bbox, skeleton_joints=skeleton_joints,
                    skeleton_joint_votes=skeleton_joint_votes, skeleton_mask=vote_mask, keep_interact_skeleton=True, skip_rates=10)
-    viser.visualize(type=['bboxes', 'room_bbox', 'skeleton'])
+    viser.visualize(type=['bboxes', 'room_bbox'])
 
 
