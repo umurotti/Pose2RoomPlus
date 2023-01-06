@@ -51,13 +51,10 @@ def compare_BBs(shape_BB_size, object_BB_size, threshold):
     shape_y_z_ratio = shape_BB_size[1] / shape_BB_size[2]
     shape_x_z_ratio = shape_BB_size[0] / shape_BB_size[2]
     
-    if  object_x_y_ratio - shape_x_y_ratio < threshold \
-                                and \
-        object_y_z_ratio - shape_y_z_ratio < threshold \
-                                and \
-        object_x_z_ratio - shape_x_z_ratio < threshold:
-           
-           return True
+    if  abs(object_x_y_ratio - shape_x_y_ratio) < threshold and \
+        abs(object_y_z_ratio - shape_y_z_ratio) < threshold and \
+        abs(object_x_z_ratio - shape_x_z_ratio) < threshold:   
+        return True
 
     return False
 
@@ -110,11 +107,21 @@ def get_mesh_bb_mapping(shapenet_data_path, included_classes):
 
 
 #
-base_path = '/home/gogebakan/workspace/Pose2Room/'
-train_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/train.json'
-validation_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/val.json'
-# shapenet_data_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/raw_obj/'
-shapenet_data_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/small_dataset/'
+user = 'baykara'
+
+if user == 'gogebakan':
+    base_path = '/home/gogebakan/workspace/Pose2Room/'
+    train_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/train.json'
+    validation_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/val.json'
+    # shapenet_data_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/raw_obj/'
+    shapenet_data_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/small_dataset/'
+else:
+    base_path = '/home/baykara/adl4cv/Pose2Room/'
+    train_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/train.json'
+    validation_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/val.json'
+    shapenet_data_path = '/home/baykara/adl4cv/pointnet_pytorch/data/myshapenet/raw_obj/'
+    # shapenet_data_path = '/home/baykara/adl4cv/pointnet_pytorch/data/myshapenet/small_dataset/'
+
 included_classes = ['bed', 'sofa', 'chair', 'lamp', 'table']
 
 # Opening JSON file
