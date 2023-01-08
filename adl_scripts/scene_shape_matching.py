@@ -119,10 +119,9 @@ else:
     base_path = '/home/baykara/adl4cv/Pose2Room/'
     train_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/train.json'
     validation_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/val.json'
-    shapenet_data_path = '/home/baykara/adl4cv/pointnet_pytorch/data/myshapenet/raw_obj/'
-    # shapenet_data_path = '/home/baykara/adl4cv/pointnet_pytorch/data/myshapenet/small_dataset/'
+    shapenet_data_path = '/home/baykara/adl4cv/pointnet_pytorch/data/adl_shapenet/watertight'
 
-included_classes = ['bed', 'sofa', 'chair', 'lamp', 'table']
+included_classes = ['bench', 'cabinet', 'faucet', 'stove', 'bookshelf', 'computer', 'desk', 'chair', 'monitor', 'sofa', 'lamp', 'nightstand', 'bed', 'dishwasher', 'fridge', 'microwave', 'toilet']
 
 # Opening JSON file
 def main():
@@ -145,9 +144,6 @@ def main():
             if class_name in included_classes:
                 res_paths = search_shapenet(mesh_bb_mapping, class_name, cur_size, 5)
             
-                with open('res_paths.json', 'w') as f:
-                    json.dump(res_paths, f)
-
                 #sort
                 sorted_args, bb_size_list = get_sorted_args_for_shaped_matches(mesh_bb_mapping, res_paths, cur_size)
                 #mesh penetration loss
