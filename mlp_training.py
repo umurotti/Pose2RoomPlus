@@ -1,5 +1,6 @@
 import sys
 import argparse
+import json
 import os
 import torch
 from torch.autograd import Variable
@@ -49,6 +50,7 @@ def train_epoch(dataloader, optimizer, model, loss_func):
     
     return current_loss
 
+
 def validate_epoch(dataloader, model, loss_func):
     model.eval()
     device = torch.device("cuda")
@@ -67,12 +69,6 @@ def validate_epoch(dataloader, model, loss_func):
             current_loss += loss.item()
             
     return current_loss
-
-
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
-    if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
 
 
 def main():
@@ -102,14 +98,30 @@ def main():
     validation_loader = load_dataloader(cfg, mode='val', dataset=dataset).dataloader
 
     device = torch.device("cuda")
-    epochs = 200
+    epochs = 300
     val_epoch = 3
     nearest_k_frames = 10
-    input_size = 8 + 2*nearest_k_frames*256
+    input_size = 8 + 2*nearest_k_frames*256 # 5128
     output_size = 1024
-    layer_sizes = [2048, 1024]
-    model = MLP_Regressor(input_size=input_size, output_size=output_size, layer_sizes=layer_sizes)
+    # layer_sizes = [2048]
+    # layer_sizes = [2048, 1024]
+    layer_sizes = [5128, 2048, 1024]
+    checkpoint_path = f'saved_models/checkpoint{len(layer_sizes)}.pt'
+
+    # write parameters to a json to be loaded in inference
+    train_params = {
+        'nearest_k_frames': nearest_k_frames,
+        'input_size': input_size,
+        'output_size': output_size,
+        'layer_sizes': layer_sizes,
+        'checkpoint_path': checkpoint_path,
+        'shapenet_data_path': '/home/baykara/adl4cv/pointnet_pytorch/data/adl_shapenet/watertight/',
+        'included_classes': ['bench', 'cabinet', 'faucet', 'stove', 'bookshelf', 'computer', 'desk', 'chair', 'monitor', 'sofa', 'lamp', 'nightstand', 'bed', 'dishwasher', 'fridge', 'microwave', 'toilet']
+    }
+    with open("configs/config_files/train_params.json", "w") as f:
+        json.dump(train_params, f, indent = 6)
     
+    model = MLP_Regressor(input_size=input_size, output_size=output_size, layer_sizes=layer_sizes)
     model = model.to(device)
     model.train()
     
@@ -139,13 +151,12 @@ def main():
             if validation_loss > best_loss:
                 early_stop_counter += 1
                 if early_stop_counter == patience:
-                    print(f'early stopping with best validation_loss: {validation_loss}')
+                    print(f'early stopping with best validation_loss: {best_loss}')
                     break
             else:
                 best_loss = validation_loss
                 early_stop_counter = 0
-                torch.save(model.state_dict(), f'saved_models/checkpoint.pt')
-                    
+                torch.save(model.state_dict(), checkpoint_path)
 
         else:
             pbar.write(f'Training loss:\t{train_loss:.5f}\t{epoch_time:.2f}s')

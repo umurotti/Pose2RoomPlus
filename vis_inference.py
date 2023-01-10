@@ -16,6 +16,8 @@ import open3d as o3d
 import os
 import os.path as osp
 import torch
+import json
+
 
 def dist_node2bbox(nodes, joint_coordinates, joint_num):
     sk_ids = []
@@ -153,18 +155,21 @@ class VIS_INFERENCE(VIS_BASE):
             renderer.AddActor(box_actor)
 
         if 'bboxes' in kwargs['type']:
-            checkpoint_path = 'saved_models/checkpoint.pt'
-            nearest_k_frames = 10
-            input_size = 8 + 2*nearest_k_frames*256
-            layer_sizes = [2048, 1024]
-            output_size = 1024
+            with open('configs/config_files/train_params.json') as f:
+                train_params = json.load(f)
+            
+            checkpoint_path = train_params['checkpoint_path']
+            nearest_k_frames = train_params['nearest_k_frames']
+            input_size = train_params['input_size']
+            layer_sizes = train_params['layer_sizes']
+            output_size = train_params['output_size']
             model = MLP_Regressor(input_size=input_size, output_size=output_size, layer_sizes=layer_sizes)
             model.load_state_dict(torch.load(checkpoint_path))
             model.cuda()
             model.eval()
             
-            shapenet_data_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/small_dataset/'
-            included_classes = ['bed', 'sofa', 'chair', 'lamp', 'table']
+            shapenet_data_path = train_params['shapenet_data_path']
+            included_classes = train_params['included_classes']
             mesh_shape_code_mapping = get_mesh_shape_code_mapping(shapenet_data_path, included_classes)
             
             # draw instance bboxes
@@ -182,7 +187,7 @@ class VIS_INFERENCE(VIS_BASE):
                 for index in range(vectors.shape[0]):
                     arrow_actor = self.set_arrow_actor(centroid, vectors[index])
                     arrow_actor.GetProperty().SetColor(color[index])
-                    #renderer.AddActor(arrow_actor)
+                    renderer.AddActor(arrow_actor)
                 
                 adl_input = torch.tensor(self.adl_inputs[node_idx]).cuda()
                 output_shape_code = model(adl_input)
@@ -193,6 +198,8 @@ class VIS_INFERENCE(VIS_BASE):
                     continue
                     
                 best_shapenet_model_path = find_closest_shapenet_model(output_shape_code, class_name, mesh_shape_code_mapping)
+                best_shapenet_model_directions_path = best_shapenet_model_path.replace('.obj', '.json')
+                print(f'shapenet path: {best_shapenet_model_path}\tclass: {class_name}')
                 
                 ply_actor = self.set_actor(self.set_mapper(self.set_obj_property(best_shapenet_model_path), 'model'))
                 ply_actor.GetProperty().SetOpacity(1)
@@ -200,7 +207,20 @@ class VIS_INFERENCE(VIS_BASE):
                 
                 math = vtk.vtkMath()
                 red_vector = vectors[0]
-                angle = math.SignedAngleBetweenVectors([0,0,-1], red_vector ,[0,1,0])
+                print(red_vector)
+                # angle = math.SignedAngleBetweenVectors([0,0,-1], red_vector ,[0,1,0])
+                with open(best_shapenet_model_directions_path, 'r') as f:
+                    directions = json.load(f)
+                front = directions['front']
+                print(f"class: {class_name}\tfront: {front}")
+                # front = [1,0,0] if class_name == 'bookshelf' else [0,-1,0]
+                transform_matrix = [[-1,0,0],
+                                    [0,0,1],
+                                    [0,1,0]]
+                transformed_front = np.dot(transform_matrix, front)
+                angle = math.SignedAngleBetweenVectors(transformed_front, red_vector ,[0,1,0])
+                
+                
                 
                 transform = vtk.vtkTransform()
                 transform.Translate(centroid)
@@ -232,16 +252,7 @@ class VIS_INFERENCE(VIS_BASE):
 
         '''draw scene mesh'''
         if 'mesh' in kwargs['type']:
-            model3d_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/raw_obj/chair/chair1.obj'
-            if model3d_path.endswith('.obj'):
-                ply_actor = self.set_actor(self.set_mapper(self.set_obj_property(model3d_path), 'model'))
-            else:
-                ply_actor = self.set_actor(self.set_mapper(self.set_ply_property(model3d_path), 'model'))
-                
-            ply_actor.GetProperty().SetOpacity(1)
-            ply_actor.GetProperty().SetInterpolationToPBR()
             arrow_actor = self.set_arrow_actor(centroid, vectors[index])
-            renderer.AddActor(ply_actor)
 
         if 'voxels' in kwargs['type']:
             ply_actor = self.set_actor(self.set_mapper(self.set_ply_property('./temp/voxel_mesh_vhome.ply'), 'model'))
@@ -410,10 +421,11 @@ def augment_data(room_bbox, skeleton_joints, object_nodes, skeleton_joint_votes,
 
     return room_bbox, object_nodes, skeleton_joints, skeleton_joint_votes
 
+
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser('Virtual Room Visualization.')
-    parser.add_argument('--scene-id', type=int, default=3,
+    parser.add_argument('--scene-id', type=int, default=0,
                         help='Give a scene id in [0-7].')
     parser.add_argument('--room-id', type=int, default=0,
                         help='Give a scene id in [0-N].')
@@ -425,12 +437,13 @@ def parse_args():
                         help='If implement data augmentation.')
     return parser.parse_args()
 
+
 if __name__ == '__main__':
     args = parse_args()
     char_name = dataset_config.character_names[args.char_id].split('/')[1]
     sample_file = '%d_%d_%d_%s_0.hdf5' % (args.scene_id, args.room_id, args.script_id, char_name)
-    # sample_file = dataset_config.sample_path.joinpath(sample_file)
-    sample_file = '/home/gogebakan/workspace/Pose2Room/datasets/virtualhome_22_classes/samples/4_2_202_Female2_0.hdf5'
+    sample_file = dataset_config.sample_path.joinpath(sample_file)
+    # sample_file = '/home/gogebakan/workspace/Pose2Room/datasets/virtualhome_22_classes/samples/2_0_0_Female2_0.hdf5'
 
     '''read data'''
     sample_data = h5py.File(sample_file, "r")
@@ -464,6 +477,5 @@ if __name__ == '__main__':
     '''visualize bboxes'''
     viser = VIS_INFERENCE(adl_inputs=adl_inputs, nodes=object_nodes, room_bbox=room_bbox, skeleton_joints=skeleton_joints,
                    skeleton_joint_votes=skeleton_joint_votes, skeleton_mask=vote_mask, keep_interact_skeleton=True, skip_rates=10)
-    viser.visualize(type=['bboxes', 'room_bbox'])
-
+    viser.visualize(type=['bboxes', 'room_bbox', 'mesh'])
 

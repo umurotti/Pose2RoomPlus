@@ -1,0 +1,31 @@
+{
+      "nearest_k_frames": 10,
+      "input_size": 5128,
+      "output_size": 1024,
+      "layer_sizes": [
+            5128,
+            2048,
+            1024
+      ],
+      "checkpoint_path": "saved_models/checkpoint3.pt",
+      "shapenet_data_path": "/home/baykara/adl4cv/pointnet_pytorch/data/adl_shapenet/watertight/",
+      "included_classes": [
+            "bench",
+            "cabinet",
+            "faucet",
+            "stove",
+            "bookshelf",
+            "computer",
+            "desk",
+            "chair",
+            "monitor",
+            "sofa",
+            "lamp",
+            "nightstand",
+            "bed",
+            "dishwasher",
+            "fridge",
+            "microwave",
+            "toilet"
+      ]
+}
