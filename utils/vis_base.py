@@ -7,6 +7,29 @@ import numpy as np
 import seaborn as sns
 import random
 
+
+class vtkTimerCallback():
+    def __init__(self, actor, iren):
+        self.timer_count = 0
+        self.actor = actor
+        self.iren = iren
+        self.timerId = None
+        self.steps = 1
+        self.angle = 5
+        self.transform = vtk.vtkTransform()
+        self.transform.RotateY(self.angle)
+
+    def execute(self, obj, event):
+        step = 0
+        self.iren = obj
+        while step < self.steps:
+            self.actor.ApplyTransform(self.transform)
+            self.iren.GetRenderWindow().Render()
+            step += 1
+        if self.timerId:
+            self.iren.DestroyTimer(self.timerId)
+
+
 class VIS_BASE(object):
     def __init__(self):
         self._cam_K = np.array([[800, 0, 400], [0, 800, 300], [0, 0, 1]])
@@ -351,7 +374,7 @@ class VIS_BASE(object):
         render_window.SetSize(*np.int32((self.cam_K[:2,2]*2)))
         render_window.SetOffScreenRendering(offline)
 
-        return render_window
+        return render_window, renderer
 
     def camRT2vtk_cam(self, camRT):
         cam_position = camRT[:3, -1]
@@ -363,9 +386,9 @@ class VIS_BASE(object):
         '''
         Visualize a 3D scene.
         '''
-        render_window = self.set_render_window(offline, *args, **kwargs)
-        render_window.Render()
-
+        render_window, renderer = self.set_render_window(offline, *args, **kwargs)
+        
+        
         if save_path is not None:
             windowToImageFilter = vtk.vtkWindowToImageFilter()
             windowToImageFilter.SetInput(render_window)
@@ -379,6 +402,16 @@ class VIS_BASE(object):
         if not offline:
             render_window_interactor = vtk.vtkRenderWindowInteractor()
             render_window_interactor.SetRenderWindow(render_window)
+
+            # Initialize must be called prior to creating timer events.
+            render_window_interactor.Initialize()
+            
+            # Sign up to receive TimerEvent
+            cb = vtkTimerCallback(renderer.GetActiveCamera(), render_window_interactor)
+            render_window_interactor.AddObserver('TimerEvent', cb.execute)
+            cb.timerId = render_window_interactor.CreateRepeatingTimer(10)
+
+            render_window.Render()
             render_window_interactor.Start()
 
 def get_colors(values, palatte_name = 'RdBu', color_depth = 256):

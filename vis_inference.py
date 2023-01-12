@@ -17,7 +17,7 @@ import os
 import os.path as osp
 import torch
 import json
-
+from math import cos, sin
 
 def dist_node2bbox(nodes, joint_coordinates, joint_num):
     sk_ids = []
@@ -66,9 +66,7 @@ def find_closest_shapenet_model(output_shape_code, obj_class, mesh_shape_code_ma
     shape_code_path = None
 
     for shape_path, shape_code in mesh_shape_code_mapping[obj_class]:
-        # breakpoint()
         dist = torch.linalg.norm(shape_code - output_shape_code)
-        # dist = torch.cdist(shape_code, output_shape_code)
         if dist < min_dist:
             min_dist = dist
             shape_code_path = shape_path
@@ -187,7 +185,7 @@ class VIS_INFERENCE(VIS_BASE):
                 for index in range(vectors.shape[0]):
                     arrow_actor = self.set_arrow_actor(centroid, vectors[index])
                     arrow_actor.GetProperty().SetColor(color[index])
-                    renderer.AddActor(arrow_actor)
+                    # renderer.AddActor(arrow_actor)
                 
                 adl_input = torch.tensor(self.adl_inputs[node_idx]).cuda()
                 output_shape_code = model(adl_input)
@@ -214,29 +212,38 @@ class VIS_INFERENCE(VIS_BASE):
                 front = directions['front']
                 print(f"class: {class_name}\tfront: {front}")
                 # front = [1,0,0] if class_name == 'bookshelf' else [0,-1,0]
-                transform_matrix = [[-1,0,0],
+                transform_matrix = [[1,0,0],
                                     [0,0,1],
                                     [0,1,0]]
                 transformed_front = np.dot(transform_matrix, front)
-                angle = math.SignedAngleBetweenVectors(transformed_front, red_vector ,[0,1,0])
-                
-                
+                radian = math.SignedAngleBetweenVectors(transformed_front, red_vector ,[0,1,0])
                 
                 transform = vtk.vtkTransform()
-                transform.Translate(centroid)
-                transform.RotateY(angle * 180.0 / math.Pi())
                 
                 # calculate scale factor by volume
+
                 mesh = o3d.io.read_triangle_mesh(best_shapenet_model_path)
+                R = mesh.get_rotation_matrix_from_xyz((0, radian, 0))
+                mesh.rotate(R, center=(0,0,0))
+
                 pcd = mesh.sample_points_uniformly(number_of_points=1024)
                 bb = o3d.geometry.AxisAlignedBoundingBox.create_from_points(pcd.points)
                 shape_bb_volume = bb.volume()
                 scene_object_bb_volume = np.prod(np.array(node['size']))
-                print(bb, bb.volume())
-                print(node['size'], scene_object_bb_volume)
                 scale_factor = (scene_object_bb_volume / shape_bb_volume)**(1/3)
-                transform.Scale(scale_factor, scale_factor, scale_factor)
                 
+                rotation = np.array([cos(radian), 0, sin(radian), 0, 1, 0, -sin(radian), 0 , cos(radian)]).reshape(3,-1)
+                translation = np.array(centroid - scale_factor*bb.get_center()).reshape(3,1)
+                pose_matrix = np.hstack((rotation, translation))
+                pose_matrix = np.vstack((pose_matrix, np.array([0,0,0,1])))
+                transform.SetMatrix(pose_matrix.flatten())
+
+                transform.Scale(scale_factor, scale_factor, scale_factor)
+                # trans = transform.Translate(centroid - scale_factor*bb.get_center())
+                # angle = radian * 180.0 / math.Pi()
+                # transform.RotateY(angle)
+
+
                 ply_actor.SetUserMatrix(transform.GetMatrix())
                 renderer.AddActor(ply_actor)
                 #####
@@ -339,7 +346,8 @@ class VIS_INFERENCE(VIS_BASE):
             line_actor.GetProperty().SetColor(self.traj_palette[traj_id])
             line_actor.GetProperty().SetOpacity(1)
             line_actor.GetProperty().SetInterpolationToPBR()
-            renderer.AddActor(line_actor)
+            # remove the lines of skeletons
+            # renderer.AddActor(line_actor)
 
         '''light'''
         focal_point = np.array([0., 0., 0.])
@@ -425,11 +433,11 @@ def augment_data(room_bbox, skeleton_joints, object_nodes, skeleton_joint_votes,
 def parse_args():
     '''PARAMETERS'''
     parser = argparse.ArgumentParser('Virtual Room Visualization.')
-    parser.add_argument('--scene-id', type=int, default=0,
+    parser.add_argument('--scene-id', type=int, default=5,
                         help='Give a scene id in [0-7].')
-    parser.add_argument('--room-id', type=int, default=0,
+    parser.add_argument('--room-id', type=int, default=1,
                         help='Give a scene id in [0-N].')
-    parser.add_argument('--script-id', type=int, default=0,
+    parser.add_argument('--script-id', type=int, default=8,
                         help='Give a script id.')
     parser.add_argument('--char-id', type=int, default=1,
                         help='Give a character id in [0-5].')
@@ -443,7 +451,9 @@ if __name__ == '__main__':
     char_name = dataset_config.character_names[args.char_id].split('/')[1]
     sample_file = '%d_%d_%d_%s_0.hdf5' % (args.scene_id, args.room_id, args.script_id, char_name)
     sample_file = dataset_config.sample_path.joinpath(sample_file)
-    # sample_file = '/home/gogebakan/workspace/Pose2Room/datasets/virtualhome_22_classes/samples/2_0_0_Female2_0.hdf5'
+    sample_file = 'datasets/virtualhome_22_classes/samples/5_1_8_Female2_0.hdf5' # sunum1
+    sample_file = 'datasets/virtualhome_22_classes/samples/1_1_0_Female2_0.hdf5' # sunum2
+    sample_file = 'datasets/virtualhome_22_classes/samples/2_0_11_Female2_0.hdf5' # sunum3
 
     '''read data'''
     sample_data = h5py.File(sample_file, "r")
