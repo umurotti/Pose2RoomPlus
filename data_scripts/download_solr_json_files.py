@@ -14,7 +14,7 @@ urls = {
     'computer': 'http://localhost:8983/solr/ShapeNet/select?fl=front%2C%20up%2C%20synsetId%2C%20fullId%2C%20wnlemmas&indent=true&q.op=OR&q=wnlemmas%3A%20laptop&rows=10000&useParams=&wnlemmas=bench&wt=json',
     'desk': 'http://localhost:8983/solr/ShapeNet/select?fl=front%2C%20up%2C%20synsetId%2C%20fullId%2C%20wnlemmas&fq=-wnlemmas%3Acabinet&indent=true&q.op=OR&q=wnlemmas%3A%20desk&rows=10000&useParams=&wnlemmas=bench&wt=json',
     'chair': 'http://localhost:8983/solr/ShapeNet/select?fl=front%2C%20up%2C%20synsetId%2C%20fullId%2C%20wnlemmas&indent=true&q.op=OR&q=wnlemmas%3A%20%22straight%20chair%22&rows=10000&useParams=&wnlemmas=bench&wt=json',
-    'monitor': 'http://localhost:8983/solr/ShapeNet/select?fl=front%2C%20up%2C%20synsetId%2C%20fullId%2C%20wnlemmas&indent=true&q.op=OR&q=wnlemmas%3A%20%22monitor%22&rows=10000&useParams=&wnlemmas=bench&wt=json',
+    'monitor': 'http://localhost:8983/solr/ShapeNet/select?fl=front%2C%20up%2C%20synsetId%2C%20fullId%2C%20wnlemmas&indent=true&q.op=OR&q=name%3Atelevision%20AND%20wnlemmas%3ALCD&rows=10000&useParams=',
     'sofa': 'http://localhost:8983/solr/ShapeNet/select?fl=front%2C%20up%2C%20synsetId%2C%20fullId%2C%20wnlemmas&indent=true&q.op=OR&q=wnlemmas%3A%20sofa&rows=10000&useParams=&wt=json',
     'lamp': 'http://localhost:8983/solr/ShapeNet/select?fl=front%2C%20up%2C%20synsetId%2C%20fullId%2C%20wnlemmas&indent=true&q.op=OR&q=wnlemmas%3A%20%22table%20lamp%22&rows=10000&useParams=&wt=json',
     'nightstand': 'http://localhost:8983/solr/ShapeNet/select?fl=front%2C%20up%2C%20synsetId%2C%20fullId%2C%20wnlemmas&indent=true&q.op=OR&q=name%3Anightstand%20OR%20wnlemmas%3A%22tall%20cabinet%22%20OR%20wnlemmas%3A%22desk%20cabinet%22&rows=10000&useParams=',
