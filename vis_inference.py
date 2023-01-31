@@ -157,7 +157,6 @@ class VIS_INFERENCE(VIS_BASE):
                 train_params = json.load(f)
             
             checkpoint_path = train_params['checkpoint_path']
-            nearest_k_frames = train_params['nearest_k_frames']
             input_size = train_params['input_size']
             layer_sizes = train_params['layer_sizes']
             output_size = train_params['output_size']
@@ -223,9 +222,6 @@ class VIS_INFERENCE(VIS_BASE):
                 # calculate scale factor by volume
 
                 mesh = o3d.io.read_triangle_mesh(best_shapenet_model_path)
-                R = mesh.get_rotation_matrix_from_xyz((0, radian, 0))
-                mesh.rotate(R, center=(0,0,0))
-
                 pcd = mesh.sample_points_uniformly(number_of_points=1024)
                 bb = o3d.geometry.AxisAlignedBoundingBox.create_from_points(pcd.points)
                 shape_bb_volume = bb.volume()
@@ -452,8 +448,8 @@ if __name__ == '__main__':
     sample_file = '%d_%d_%d_%s_0.hdf5' % (args.scene_id, args.room_id, args.script_id, char_name)
     sample_file = dataset_config.sample_path.joinpath(sample_file)
     sample_file = 'datasets/virtualhome_22_classes/samples/5_1_8_Female2_0.hdf5' # sunum1
-    sample_file = 'datasets/virtualhome_22_classes/samples/1_1_0_Female2_0.hdf5' # sunum2
-    sample_file = 'datasets/virtualhome_22_classes/samples/2_0_11_Female2_0.hdf5' # sunum3
+    # sample_file = 'datasets/virtualhome_22_classes/samples/1_1_0_Female2_0.hdf5' # sunum2
+    # sample_file = 'datasets/virtualhome_22_classes/samples/2_0_11_Female2_0.hdf5' # sunum3
 
     '''read data'''
     sample_data = h5py.File(sample_file, "r")

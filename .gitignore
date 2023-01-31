@@ -2,9 +2,11 @@
 __pycache__/
 runs
 out/p2rnet
-datasets/virtualhome_22_classes/mlp_dataset/
+datasets/virtualhome_22_classes/samples_wo_penetration_loss/
 datasets/virtualhome_22_classes/samples/
 external/pointnet2_ops_lib/out/
 saved_models
 .ipynb_checkpoints
 *.jpeg
+*.png
+adl_scripts/mesh_bb_mapping

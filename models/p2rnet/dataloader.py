@@ -29,6 +29,7 @@ class P2RNet_VirtualHome(Base_Dataset):
             self.offset_func = lambda scale: np.array([1., 0., 1.]) * scale
 
     def augment_data(self, skeleton_joints, object_nodes, skeleton_joint_votes):
+        breakpoint()
         '''Augment training data'''
         if_flip = random.randint(0, 1)
         rot_angle = np.random.choice([-np.pi, -0.5 * np.pi, 0, 0.5 * np.pi])

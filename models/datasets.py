@@ -18,7 +18,8 @@ class Base_Dataset(Dataset):
         self.dataset_config = cfg.dataset_config
         self.mode = mode
         
-        json_file = f'{mode}_all.json' if 'use_all' in cfg.config['data'] else mode + '.json'
+        json_file = 'small.json' if 'use_all' in cfg.config['data'] else mode + '.json'
+        # json_file = f'{mode}_all.json' if 'use_all' in cfg.config['data'] else mode + '.json'
         split_file = os.path.join(cfg.config['data']['split'], json_file)
         self.split = read_json(split_file)
         self.data_list = self.get_data_to_memory()

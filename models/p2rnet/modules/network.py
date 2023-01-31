@@ -96,13 +96,13 @@ class P2RNet(BaseNetwork):
           
         samples_folder_path = self.cfg.config['data']['samples_path']
         file_name = f"{data['sample_idx'][0]}.hdf5"
-        try:
-            write_nearest_features_to_dataset(file_name, 
-                                            samples_folder_path, 
-                                            nearest_seed_skeleton_features_list, 
-                                            nearest_seed_skeleton_indices_list)
-        except:
-            breakpoint()
+        # try:
+        write_nearest_features_to_dataset(file_name, 
+                                        samples_folder_path, 
+                                        nearest_seed_skeleton_features_list, 
+                                        nearest_seed_skeleton_indices_list)
+        # except:
+        #     breakpoint()
         #######
 
         # --------- Generate Center Candidates ---------

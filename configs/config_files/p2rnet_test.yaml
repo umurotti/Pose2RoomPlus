@@ -12,7 +12,7 @@ device:
 data:
   dataset: virtualhome
   split: datasets/virtualhome_22_classes/splits/script_level
-  samples_path: /home/gogebakan/workspace/Pose2Room/datasets/virtualhome_22_classes/samples
+  samples_path: /home/baykara/adl4cv/Pose2Room/datasets/virtualhome_22_classes/samples
   num_frames: 768
   num_seeds: 512
   seed_sampling: uniform

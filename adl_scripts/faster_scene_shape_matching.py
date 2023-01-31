@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 import logging, sys
 import pickle
-from time import time
+import heapq
 
 o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -88,6 +88,27 @@ def get_sorted_args_for_shaped_matches(mesh_bb_mapping, res_paths, object_BB_siz
         bb_size_list.append(cur_bb_error)
     return np.argsort(np.asarray(bb_size_list)), bb_size_list
 
+def get_top_k_paths_from_shapenet(mesh_bb_mapping, res_paths, object_BB_size, k=10):
+    bb_errors = []
+    max_error_tuple = (-1, '')
+
+    for res_path in res_paths:
+        shape_BB = mesh_bb_mapping[res_path]
+        cur_bb_error = calculate_match_error(object_BB_size, shape_BB)
+        if len(bb_errors) <= k:
+            heapq.heappush(bb_errors, (cur_bb_error, res_path))
+            if cur_bb_error > max_error_tuple[0]:
+                max_error_tuple = (cur_bb_error, res_path)
+
+        elif cur_bb_error < max_error_tuple[0]:
+            bb_errors.remove(max_error_tuple)
+            max_error_tuple = (cur_bb_error, res_path)
+            heapq.heapify(bb_errors)
+            heapq.heappush(bb_errors, max_error_tuple)
+
+    return bb_errors
+    # return [path for (err, path) in bb_errors]
+
 def get_mesh_bb_mapping(shapenet_data_path, included_classes):
     mapping = {}
     for class_name in included_classes:
@@ -104,15 +125,12 @@ def mesh_penetration_loss(mesh_path, nearest_k_frames, weight=0.8):
     scene = o3d.t.geometry.RaycastingScene()
     _ = scene.add_triangles(mesh)  # we do not need the geometry ID for mesh
 
-    total_loss = 0.0
-    
-    for frame in nearest_k_frames:
-        frame = frame.astype('float32')
-        signed_distances = scene.compute_signed_distance(frame).numpy()
-        negative_indices = signed_distances > 0
-        signed_distances = signed_distances**2
-        signed_distances[negative_indices] *= weight
-        total_loss += signed_distances.sum()
+    nearest_k_frames = nearest_k_frames.reshape(-1, 3).astype('float32')
+    signed_distances = scene.compute_signed_distance(nearest_k_frames).numpy()
+    positive_indices = signed_distances > 0
+    signed_distances = signed_distances**2
+    signed_distances[positive_indices] *= weight
+    total_loss = signed_distances.sum()
 
     return total_loss
 
@@ -125,12 +143,10 @@ if user == 'gogebakan':
     shapenet_data_path = '/home/gogebakan/workspace/pointnet_pytorch/data/myshapenet/small_dataset/'
 else:
     base_path = '/home/baykara/adl4cv/Pose2Room/'
-    train_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/train_tmp.json'
-    validation_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/val_tmp.json'
+    train_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/train_fast.json'
+    validation_path = base_path + 'datasets/virtualhome_22_classes/splits/script_level/val_fast.json'
     shapenet_data_path = '/home/baykara/adl4cv/pointnet_pytorch/data/adl_shapenet/watertight'
     
-
-use_mesh_penetration_loss = False
 included_classes = ['bench', 'cabinet', 'faucet', 'stove', 'bookshelf', 'computer', 'desk', 'chair', 'monitor', 'sofa', 'lamp', 'nightstand', 'bed', 'dishwasher', 'fridge', 'microwave', 'toilet']
 
 class_thresholds = {
@@ -157,8 +173,6 @@ with open('mesh_bb_mapping', 'rb') as f:
     mesh_bb_mapping = pickle.load(f)
 
 for json_path in [train_path, validation_path]:
-# for json_path in [validation_path]:
-    start = time()
     with open(json_path) as f:
         # returns JSON object as a dictionary
         path_list = json.load(f)
@@ -186,24 +200,23 @@ for json_path in [train_path, validation_path]:
                 
                 #sort
                 sorted_args, bb_size_list = get_sorted_args_for_shaped_matches(mesh_bb_mapping, res_paths, cur_size)
+                top10_mesh_indices = sorted_args[:10]
+                top10_mesh_paths2 = res_paths[top10_mesh_indices]
+                tmp = [(path, error) for path, error in zip(top10_mesh_paths2, bb_size_list)]
 
-                if use_mesh_penetration_loss:
-                    top10_mesh_indices = sorted_args[:10]
-                    top10_mesh_paths = res_paths[top10_mesh_indices]
-                    
-                    #mesh penetration loss
-                    nearest_k_frames_indices = sample_data['nearest_seed_skeleton_indices'][i].astype('int')
-                    skeleton_joints = sample_data['skeleton_joints'][:]
-                    input_joints_indices = np.linspace(0, skeleton_joints.shape[0]-1, 768).round().astype(np.uint16)
-                    input_joints = skeleton_joints[input_joints_indices]
-                    nearest_k_frames = input_joints[nearest_k_frames_indices]
+                top10_mesh_paths = get_top_k_paths_from_shapenet(mesh_bb_mapping, res_paths, cur_size, k=10)
+                breakpoint()
+                #mesh penetration loss
+                nearest_k_frames_indices = sample_data['nearest_seed_skeleton_indices'][i].astype('int')
+                skeleton_joints = sample_data['skeleton_joints'][:]
+                input_joints_indices = np.linspace(0, skeleton_joints.shape[0]-1, 768).round().astype(np.uint16)
+                input_joints = skeleton_joints[input_joints_indices]
+                nearest_k_frames = input_joints[nearest_k_frames_indices]
 
-                    mesh_penetration_losses = [mesh_penetration_loss(curr_mesh_path, nearest_k_frames) for curr_mesh_path in top10_mesh_paths]
-                    best_mesh_index = np.argmin(mesh_penetration_losses)
-                    best_match = top10_mesh_paths[best_mesh_index]
-                else:
-                    best_match = res_paths[sorted_args[0]] 
-
+                mesh_penetration_losses = [mesh_penetration_loss(curr_mesh_path, nearest_k_frames) for curr_mesh_path in top10_mesh_paths]
+                best_mesh_index = np.argmin(mesh_penetration_losses)
+                
+                best_match = top10_mesh_paths[best_mesh_index]
                 best_match = os.path.splitext(best_match)[0] + '.npy'
                 shape_code = np.load(best_match)
                 shape_codes.append(shape_code)
@@ -219,8 +232,7 @@ for json_path in [train_path, validation_path]:
         sample_data.create_dataset('shape_codes', data=shape_codes) 
         sample_data.close()
         
-    end = time()
-    print(f'{json_path} took {end-start}')
+
 
 
 

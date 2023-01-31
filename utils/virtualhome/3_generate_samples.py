@@ -17,6 +17,7 @@ import argparse
 from utils.virtualhome.vhome_utils import check_in_box
 
 def augment_sample(room_bbox, object_nodes, skeleton_joints, flip_matrix, rot90, aug_idx):
+    breakpoint()
     '''Augment samples with flip and rotations'''
     if_flip = False if aug_idx <= 3 else True
     rot_num = aug_idx % 4

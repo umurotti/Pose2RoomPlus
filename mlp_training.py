@@ -75,7 +75,7 @@ def main():
     writer = SummaryWriter()
     
     args = parse_args()
-    config = read_to_dict('/home/gogebakan/workspace/Pose2Room/configs/config_files/p2rnet_train.yaml')
+    config = read_to_dict('/home/baykara/adl4cv/Pose2Room/configs/config_files/p2rnet_train.yaml')
     # initiate device environments
     os.environ["CUDA_VISIBLE_DEVICES"] = config['device']['gpu_ids']
     from net_utils.utils import initiate_environment, get_sha
@@ -106,7 +106,7 @@ def main():
     # layer_sizes = [2048]
     # layer_sizes = [2048, 1024]
     layer_sizes = [5128, 2048, 1024]
-    checkpoint_path = f'saved_models/checkpoint{len(layer_sizes)}.pt'
+    checkpoint_path = f'saved_models/mpl_checkpoint{len(layer_sizes)}.pt'
 
     # write parameters to a json to be loaded in inference
     train_params = {
