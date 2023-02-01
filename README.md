@@ -1,3 +1,8 @@
+# Pose2Room+
+
+<img src="out/resources/ADL4CV-Poster.pptx.svg" alt="poster" width="100%" />
+
+
 # Pose2Room [[Project]](https://yinyunie.github.io/pose2room-page/)[[Paper]](https://arxiv.org/abs/2112.03030)[[Video]](https://youtu.be/MFfKTcvbM5o)
 
 **Pose2Room: Understanding 3D Scenes from Human Activities** <br>
